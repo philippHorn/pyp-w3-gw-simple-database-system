@@ -1,13 +1,14 @@
 import json
 import os
 from datetime import date
-from exceptions import ValidationError
+from .exceptions import ValidationError
+from .config import BASE_DB_FILE_PATH
 
 class Database(object):
     def __init__(self, db_name, connect = False):
         self.name = db_name
         self.table_names = []
-        self.path = './' + db_name
+        self.path = BASE_DB_FILE_PATH + db_name + '/'
         if connect:
             self.read()
         else:
@@ -27,9 +28,8 @@ class Database(object):
         files = os.listdir(self.path)
         
         for filename in files:
-            with open(self.path + '/' + filename) as file:
+            with open(self.path + filename) as file:
                 json_dict = json.load(file)
-                print json_dict
             table_name = filename
             self.table_names.append(table_name)
             table = Table(self.name, table_name, json_dict['config'], connect = True)
@@ -42,7 +42,7 @@ class Table(object):
     
     def __init__(self, database_name, table_name, columns, connect = False):
         self.name = table_name
-        self.path ='./' + database_name + '/' + self.name
+        self.path = BASE_DB_FILE_PATH + database_name + '/' + self.name
         
         #if os.path.exists(self.path):
             #self.read()
@@ -62,11 +62,13 @@ class Table(object):
             raise ValidationError('Invalid amount of field')
         for value, column_list, column_type in zip(args, self.data, self.types):
             
-            exec('type_ = ' + column_type)
+            exec('type_ = ' + column_type, globals())
             if type(value) == type_:
                 column_list.append(str(value))
             else:
-                raise ValidationError('Invalid type of field "birth_date": Given "str", expected "date"')
+                ind = args.index(value)
+                type_string = str(type(value)).split(' ')[1].strip("'<>")
+                raise ValidationError('Invalid type of field "{}": Given "{}", expected "{}"'.format(self.headers[ind], type_string, column_type))
         self.write()
     
     def read(self):
@@ -87,10 +89,56 @@ class Table(object):
         
     def count(self):
         return len(self.data[0])
+        
+    def query(self, **kwargs):
 
+        #Only works for max of 1 kwarg        
+        key, value = list(kwargs.items())[0] 
+        if key in self.headers:
+            column_number = self.headers.index(key)
+            indices = [count for count, col_value in enumerate(self.data[column_number]) if value == col_value]
+            values = [[data_list[ind] for data_list in self.data] for ind in indices]
+            return_list = []
+            
+            for lst in values:
+                column = Column(**dict(zip(self.headers, lst)))
+                return_list.append(column)
+    
+        return return_list
+    
+    def describe(self):
+        return self.config
+        
+    def all(self):
+        indices = range(len(self.data[0]))
+
+        values = [[convert_string(data_list[ind]) for data_list in self.data] for ind in indices]
+        
+        for lst in values:
+            yield Column(**dict(zip(self.headers, lst)))
+            
+
+def convert_string(string):
+    if string.isdigit():
+        try:
+            return float(string)
+        except:
+            return int(string)
+            
+    if string == "True":
+        return True
+    elif string == "False":
+        return False
+    return string
+        
+class Column:
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            
 def create_database(db_name):
-    if os.path.exists('./'+db_name):
-        raise ValidationError('Database with name "library" already exists.')
+    if os.path.exists( BASE_DB_FILE_PATH + db_name):
+        raise ValidationError('Database with name "{}" already exists.'.format(db_name))
     return Database(db_name)
     
 def connect_database(db_name):
