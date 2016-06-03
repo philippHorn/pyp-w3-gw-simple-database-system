@@ -15,18 +15,16 @@ class Database(object):
             if not os.path.exists(self.path):
                 os.makedirs(self.path)
 
-            
     def create_table(self, table_name=None, columns=[]):
         table = Table(self.name, table_name, columns)
-        self.table_names.append(table_name)
         setattr(self, table_name, table)
+        self.table_names.append(table_name)
     
     def show_tables(self):
         return self.table_names
         
     def read(self):
         files = os.listdir(self.path)
-        
         for filename in files:
             with open(self.path + filename) as file:
                 json_dict = json.load(file)
@@ -98,11 +96,7 @@ class Table(object):
             column_number = self.headers.index(key)
             indices = [count for count, col_value in enumerate(self.data[column_number]) if value == col_value]
             values = [[data_list[ind] for data_list in self.data] for ind in indices]
-            return_list = []
-            
-            for lst in values:
-                column = Column(**dict(zip(self.headers, lst)))
-                return_list.append(column)
+            return_list = [Column(**dict(zip(self.headers, lst))) for lst in values]
     
         return return_list
     
@@ -117,13 +111,21 @@ class Table(object):
         for lst in values:
             yield Column(**dict(zip(self.headers, lst)))
             
+    def sort(self, attr_name, key_func = None):
+        """return sorted list of columns"""
+        get_attribute = lambda obj: getattr(obj, attr_name) # key function needs one argument
+        
+        if key_func:
+            new_key = lambda obj: key_func(get_attribute(obj))
+            return sorted(self.all(), key = new_key)
+            
+        return sorted(self.all(), key = get_attribute)
 
 def convert_string(string):
     if string.isdigit():
-        try:
+        if '.' in string:
             return float(string)
-        except:
-            return int(string)
+        return int(string)
             
     if string == "True":
         return True
