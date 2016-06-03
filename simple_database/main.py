@@ -66,7 +66,7 @@ class Table(object):
             if type(value) == type_:
                 column_list.append(str(value))
             else:
-                raise ValueError('Invalid type of field "birth_date": Given "str", expected "date"')
+                raise ValidationError('Invalid type of field "birth_date": Given "str", expected "date"')
         self.write()
     
     def read(self):
