@@ -1,5 +1,98 @@
-def create_database(db_name):
-    raise NotImplementedError()
+import json
+import os
+from datetime import date
+from exceptions import ValidationError
 
+class Database(object):
+    def __init__(self, db_name, connect = False):
+        self.name = db_name
+        self.table_names = []
+        self.path = './' + db_name
+        if connect:
+            self.read()
+        else:
+            if not os.path.exists(self.path):
+                os.makedirs(self.path)
+
+            
+    def create_table(self, table_name=None, columns=[]):
+        table = Table(self.name, table_name, columns)
+        self.table_names.append(table_name)
+        setattr(self, table_name, table)
+    
+    def show_tables(self):
+        return self.table_names
+        
+    def read(self):
+        files = os.listdir(self.path)
+        
+        for filename in files:
+            with open(self.path + '/' + filename) as file:
+                json_dict = json.load(file)
+                print json_dict
+            table_name = filename
+            self.table_names.append(table_name)
+            table = Table(self.name, table_name, json_dict['config'], connect = True)
+            setattr(self, table_name, table)
+        
+
+class Table(object):
+    
+    string_to_type = {'int' : int, 'str' : str, 'bool' : bool}
+    
+    def __init__(self, database_name, table_name, columns, connect = False):
+        self.name = table_name
+        self.path ='./' + database_name + '/' + self.name
+        
+        #if os.path.exists(self.path):
+            #self.read()
+        #else:
+        self.headers = [column['name'] for column in columns]
+        self.types = [column['type'] for column in columns]
+        self.data = [[] for _ in columns]
+        self.config = columns
+        
+        if not connect:
+            self.write()
+        else:
+            self.read()
+
+    def insert(self, *args):
+        if len(args) != len(self.data):
+            raise ValidationError('Invalid amount of field')
+        for value, column_list, column_type in zip(args, self.data, self.types):
+            
+            exec('type_ = ' + column_type)
+            if type(value) == type_:
+                column_list.append(str(value))
+            else:
+                raise ValueError('Invalid type of field "birth_date": Given "str", expected "date"')
+        self.write()
+    
+    def read(self):
+        with open(self.path, 'r') as file:
+            json_dict = json.load(file)
+            self.headers = json_dict['headers']
+            self.types = json_dict['types']
+            self.data = json_dict['data']
+    
+    def write(self):
+        self.file = open(self.path, 'w')
+        
+        data = { "headers":self.headers, "types":self.types, "data":self.data, 'config': self.config}
+        json_string = json.dumps(data)
+        self.file.write(json_string)
+        
+        self.file.close()
+        
+    def count(self):
+        return len(self.data[0])
+
+def create_database(db_name):
+    if os.path.exists('./'+db_name):
+        raise ValidationError('Database with name "library" already exists.')
+    return Database(db_name)
+    
 def connect_database(db_name):
-    raise NotImplementedError()
+    return Database(db_name, connect = True)
+    
