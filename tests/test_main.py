@@ -143,3 +143,16 @@ class SimpleDatabaseTestCase(unittest.TestCase):
             {'name': 'alive', 'type': 'bool'},
         ]
         self.assertEqual(columns, expected)
+    
+    def test_sort(self):
+        self.db.authors.insert(3, 'William Shakespeare', date(1564, 4, 26), 'UK', False)
+        
+        sorted_by_name = self.db.authors.sort('name')
+        self.assertEqual([col.name for col in sorted_by_name], ['Edgard Alan Poe', 'Jorge Luis Borges', 'William Shakespeare'])
+    
+    def test_sort_by_key(self):
+        self.db.authors.insert(3, 'William Shakespeare', date(1564, 4, 26), 'UK', False)
+        
+        get_lastname = lambda name: name.split()[-1]
+        sort_by_last_name = self.db.authors.sort('name', get_lastname)
+        self.assertEqual([col.name for col in sort_by_last_name], ['Jorge Luis Borges', 'Edgard Alan Poe', 'William Shakespeare'])
