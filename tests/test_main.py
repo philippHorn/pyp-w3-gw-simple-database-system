@@ -125,6 +125,18 @@ class SimpleDatabaseTestCase(unittest.TestCase):
         gen = self.db.authors.query(nationality='UYU')
         self.assertEqual(len([author for author in gen]), 0)
 
+    def test_query_mult_keywords_and(self):
+        self.db.authors.insert(4, 'William Shakespeare', date(1564, 4, 26), 'USA', False)
+        authors = self.db.authors.query(alive = False, nationality = 'USA',  mode = 'and')
+        self.assertEqual([author.name for author in authors], ['Edgard Alan Poe', 'William Shakespeare'])
+
+    def test_query_mult_keywords_or(self):
+        self.db.authors.insert(4, 'William Shakespeare', date(1564, 4, 26), 'USA', False)
+        authors = self.db.authors.query(alive=False, nationality='USA', mode='or')
+        self.assertEqual([author.name for author in authors],
+                         ['Edgard Alan Poe', 'William Shakespeare', 'Jorge Luis Borges'])
+
+
     def test_all(self):
         gen = self.db.authors.all()
         self.assertTrue(isinstance(gen, types.GeneratorType))
@@ -151,7 +163,7 @@ class SimpleDatabaseTestCase(unittest.TestCase):
         self.assertEqual([col.name for col in sorted_by_name], ['Edgard Alan Poe', 'Jorge Luis Borges', 'William Shakespeare'])
     
     def test_sort_by_key(self):
-        self.db.authors.insert(3, 'William Shakespeare', date(1564, 4, 26), 'UK', False)
+        self.db.authors.insert(4, 'William Shakespeare', date(1564, 4, 26), 'UK', False)
         
         get_lastname = lambda name: name.split()[-1]
         sort_by_last_name = self.db.authors.sort('name', get_lastname)

@@ -88,18 +88,26 @@ class Table(object):
     def count(self):
         return len(self.data[0])
         
-    def query(self, **kwargs):
+    def query(self, mode = 'and', **kwargs):
 
-        #Only works for max of 1 kwarg        
         key, value = list(kwargs.items())[0] 
         if key in self.headers:
             column_number = self.headers.index(key)
-            indices = [count for count, col_value in enumerate(self.data[column_number]) if value == col_value]
+
+            indices = [count for count, col_value in enumerate(self.data[column_number]) \
+                       if value == convert_string(col_value)]
+
             values = [[data_list[ind] for data_list in self.data] for ind in indices]
-            return_list = [Column(**dict(zip(self.headers, lst))) for lst in values]
-    
-        return return_list
-    
+            matches = {Column(**dict(zip(self.headers, lst))) for lst in values}
+
+            if len(kwargs) == 1:
+                return matches
+            else:
+                new_dict = {new_key: new_value for new_key, new_value in kwargs.items()\
+                            if new_key != key}
+                return matches.intersection(self.query(mode = mode, **new_dict)) if mode == 'and' \
+                    else matches.union(self.query(mode = mode, **new_dict))
+
     def describe(self):
         return self.config
         
@@ -135,9 +143,20 @@ def convert_string(string):
         
 class Column:
     def __init__(self, **kwargs):
-        for key, value in kwargs.items():
+        self.values = []
+        for key, value in sorted(kwargs.items()):
             setattr(self, key, value)
-            
+            self.values.append(value)
+
+    def __eq__(self, other):
+        return self.values == other.values
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __hash__(self):
+        return tuple(self.values).__hash__()
+
 def create_database(db_name):
     if os.path.exists( BASE_DB_FILE_PATH + db_name):
         raise ValidationError('Database with name "{}" already exists.'.format(db_name))
